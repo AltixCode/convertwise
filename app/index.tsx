@@ -19,6 +19,7 @@ import { showInterstitial } from '@/monetization/interstitial';
 import { useConverterStore } from '@/store/useConverterStore';
 import { usePremiumStore } from '@/store/usePremiumStore';
 import { MIN_TOUCH_TARGET, useTheme, withAlpha } from '@/theme';
+import { useTabletColumn } from '@/theme/useTabletColumn';
 import type { CategoryId } from '@/logic/units';
 
 /**
@@ -31,6 +32,7 @@ export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, spacing, radius } = useTheme();
+  const tabletColumn = useTabletColumn();
 
   const category = useConverterStore((s) => s.category);
   const fromUnit = useConverterStore((s) => s.fromUnit);
@@ -149,7 +151,9 @@ export default function Home() {
       <ScrollView
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingTop: insets.top + spacing.base, paddingBottom: spacing.xl }}
+        contentContainerStyle={{ paddingTop: insets.top + spacing.base, paddingBottom: spacing.xl ,
+          ...tabletColumn,
+        }}
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.titleRow, { paddingHorizontal: spacing.base, marginBottom: spacing.base }]}>
