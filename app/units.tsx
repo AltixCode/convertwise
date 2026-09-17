@@ -10,6 +10,7 @@ import { t } from '@/i18n';
 import { unitName } from '@/i18n/units';
 import { MIN_TOUCH_TARGET, useTheme, withAlpha } from '@/theme';
 import { useConverterStore } from '@/store/useConverterStore';
+import { useTabletColumn } from '../src/theme/useTabletColumn';
 
 /**
  * The unit picker.
@@ -21,6 +22,8 @@ import { useConverterStore } from '@/store/useConverterStore';
  */
 export default function UnitPicker() {
   const router = useRouter();
+
+  const tabletColumn = useTabletColumn();
   const insets = useSafeAreaInsets();
   const { colors, spacing, radius } = useTheme();
   const params = useLocalSearchParams<{ side?: string }>();
@@ -103,7 +106,7 @@ export default function UnitPicker() {
         data={results}
         keyExtractor={(u) => u.id}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + spacing.xl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + spacing.xl , ...tabletColumn }}
         ListEmptyComponent={
           <Text variant="body" tone="muted" style={{ paddingVertical: spacing.xl }}>
             {t('noUnitsFound')}
