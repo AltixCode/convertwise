@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useRef } from 'react';
-import { Pressable, ScrollView, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 
 import { Text } from '@/components/ui';
 import { t, type TranslationKey } from '@/i18n';
@@ -39,6 +39,12 @@ interface Props {
  */
 export function CategoryBar({ active, onSelect }: Props) {
   const { colors, spacing, radius } = useTheme();
+  const { width } = useWindowDimensions();
+  // On a tablet the chips very nearly fit the content column, so the scroll
+  // view clipped one mid-word at the right edge -- "Da..." for Data -- with
+  // visible room around it. A row that is one chip short of fitting does not
+  // read as scrollable, it reads as broken. Given the width, wrap instead.
+  const isTablet = width >= 700;
   const scroller = useRef<ScrollView>(null);
   const offsets = useRef<Partial<Record<CategoryId, number>>>({});
 
@@ -51,13 +57,8 @@ export function CategoryBar({ active, onSelect }: Props) {
     if (x !== undefined) scroller.current?.scrollTo({ x: Math.max(0, x - 24), animated: true });
   }, [active]);
 
-  return (
-    <ScrollView
-      ref={scroller}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={[styles.row, { paddingHorizontal: spacing.base, gap: spacing.sm }]}
-    >
+  const chips = (
+    <>
       {CATEGORIES.map((category) => {
         const selected = category.id === active;
         return (
@@ -95,11 +96,38 @@ export function CategoryBar({ active, onSelect }: Props) {
           </Pressable>
         );
       })}
+    </>
+  );
+
+  if (isTablet) {
+    return (
+      <View
+        style={[
+          styles.row,
+          styles.wrap,
+          { paddingHorizontal: spacing.base, gap: spacing.sm },
+        ]}
+      >
+        {chips}
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      ref={scroller}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={[styles.row, { paddingHorizontal: spacing.base, gap: spacing.sm }]}
+    >
+      {chips}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   row: { alignItems: 'center' },
+  // Wrapping needs an explicit row direction; a View defaults to column.
+  wrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
   chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
 });
