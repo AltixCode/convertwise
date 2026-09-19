@@ -117,27 +117,57 @@ describe('Paywall', () => {
     const { getByText } = await renderWithProviders(<Paywall />);
     expect(getByText(t('adsDisclosure'))).toBeTruthy();
   });
+
+  it('steps through the benefit carousel on Next/Back rather than listing them all at once', async () => {
+    const { getByText, queryByText } = await renderWithProviders(<Paywall />);
+
+    // Step 0 (the default): only the first benefit is on screen.
+    expect(getByText(t('feat1Title'))).toBeTruthy();
+    expect(queryByText(t('feat2Title'))).toBeNull();
+
+    await fireEvent.press(getByText(t('benefitNext')));
+    expect(getByText(t('feat2Title'))).toBeTruthy();
+    expect(queryByText(t('feat1Title'))).toBeNull();
+
+    await fireEvent.press(getByText(t('back')));
+    expect(getByText(t('feat1Title'))).toBeTruthy();
+    expect(queryByText(t('feat2Title'))).toBeNull();
+  });
 });
 
 describe('when the store has nothing to sell', () => {
   it('says the store is unreachable rather than spinning forever', async () => {
-    usePremiumStore.setState({ lifetime: null, offeringsResolved: true, isPremium: false, isReady: true });
+    usePremiumStore.setState({
+      lifetime: null,
+      offeringsResolved: true,
+      isPremium: false,
+      isReady: true,
+    });
     const { getByText, queryByText } = await renderWithProviders(<Paywall />);
     expect(getByText(t('storeUnavailable'))).toBeTruthy();
     expect(queryByText(t('loadingPrice'))).toBeNull();
   });
 
   it('still offers Restore, so a user who already paid is not stranded', async () => {
-    usePremiumStore.setState({ lifetime: null, offeringsResolved: true, isPremium: false, isReady: true });
+    usePremiumStore.setState({
+      lifetime: null,
+      offeringsResolved: true,
+      isPremium: false,
+      isReady: true,
+    });
     const { getByText } = await renderWithProviders(<Paywall />);
     expect(getByText(t('restorePurchases'))).toBeTruthy();
   });
 
   it('shows the spinner only while the lookup is genuinely still running', async () => {
-    usePremiumStore.setState({ lifetime: null, offeringsResolved: false, isPremium: false, isReady: true });
+    usePremiumStore.setState({
+      lifetime: null,
+      offeringsResolved: false,
+      isPremium: false,
+      isReady: true,
+    });
     const { getByText, queryByText } = await renderWithProviders(<Paywall />);
     expect(getByText(t('loadingPrice'))).toBeTruthy();
     expect(queryByText(t('storeUnavailable'))).toBeNull();
   });
 });
-
