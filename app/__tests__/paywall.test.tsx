@@ -1,17 +1,17 @@
-import { fireEvent, waitFor } from '@testing-library/react-native';
-import React from 'react';
-import { Linking } from 'react-native';
-import type { PurchasesPackage } from 'react-native-purchases';
+import { fireEvent, waitFor } from "@testing-library/react-native";
+import React from "react";
+import { Linking } from "react-native";
+import type { PurchasesPackage } from "react-native-purchases";
 
-import Paywall from '../paywall';
-import { testRouter } from './testRouter';
-import { renderWithProviders } from '@/components/__tests__/renderWithProviders';
-import { t } from '@/i18n';
-import { usePremiumStore } from '@/store/usePremiumStore';
+import Paywall from "../paywall";
+import { testRouter } from "./testRouter";
+import { renderWithProviders } from "@/components/__tests__/renderWithProviders";
+import { t } from "@/i18n";
+import { usePremiumStore } from "@/store/usePremiumStore";
 
 const LIFETIME = {
-  identifier: '$rc_lifetime',
-  product: { priceString: '$3.99', price: 3.99, subscriptionPeriod: null },
+  identifier: "$rc_lifetime",
+  product: { priceString: "$3.99", price: 3.99, subscriptionPeriod: null },
 } as unknown as PurchasesPackage;
 
 function seed(over: Record<string, unknown> = {}) {
@@ -22,8 +22,8 @@ function seed(over: Record<string, unknown> = {}) {
     isPurchasing: false,
     error: null,
     refreshOfferings: jest.fn().mockResolvedValue(undefined),
-    purchase: jest.fn().mockResolvedValue('purchased'),
-    restore: jest.fn().mockResolvedValue('none'),
+    purchase: jest.fn().mockResolvedValue("purchased"),
+    restore: jest.fn().mockResolvedValue("none"),
     ...over,
   } as never);
 }
@@ -40,103 +40,167 @@ beforeEach(() => {
 // `jest.clearAllMocks()` in beforeEach resets call counts, and each test that
 // needs a spy installs its own.
 
-describe('Paywall', () => {
-  it('waits for the price rather than showing a button that cannot be priced', async () => {
+describe("Paywall", () => {
+  it("waits for the price rather than showing a button that cannot be priced", async () => {
     const { getByText, queryByText } = await renderWithProviders(<Paywall />);
-    expect(getByText(t('loadingPrice'))).toBeTruthy();
-    expect(queryByText(t('lifetimeAccess', { price: '$3.99' }))).toBeNull();
+    expect(getByText(t("loadingPrice"))).toBeTruthy();
+    expect(queryByText(t("lifetimeAccess", { price: "$3.99" }))).toBeNull();
   });
 
-  it('offers exactly one purchase, priced, and buys it on tap', async () => {
-    const purchase = jest.fn().mockResolvedValue('purchased');
+  it("offers exactly one purchase, priced, and buys it on tap", async () => {
+    const purchase = jest.fn().mockResolvedValue("purchased");
     seed({ lifetime: LIFETIME, purchase });
     const { getByText } = await renderWithProviders(<Paywall />);
-    await fireEvent.press(getByText(t('lifetimeAccess', { price: '$3.99' })));
+    await fireEvent.press(getByText(t("lifetimeAccess", { price: "$3.99" })));
     expect(purchase).toHaveBeenCalledWith(LIFETIME);
   });
 
-  it('states the purchase is one-time — the portfolio never sells subscriptions', async () => {
+  it("states the purchase is one-time — the portfolio never sells subscriptions", async () => {
     seed({ lifetime: LIFETIME });
     const { getByText } = await renderWithProviders(<Paywall />);
-    expect(getByText(t('oneTimePayment'))).toBeTruthy();
-    expect(getByText(t('antiSubHeadline'))).toBeTruthy();
+    expect(getByText(t("oneTimePayment"))).toBeTruthy();
+    expect(getByText(t("antiSubHeadline"))).toBeTruthy();
   });
 
-  it('lists what the purchase unlocks', async () => {
+  it("lists what the purchase unlocks", async () => {
     const { getByText } = await renderWithProviders(<Paywall />);
-    expect(getByText(t('feat1Title'))).toBeTruthy();
-    expect(getByText(t('feat1Desc'))).toBeTruthy();
+    expect(getByText(t("feat1Title"))).toBeTruthy();
+    expect(getByText(t("feat1Desc"))).toBeTruthy();
   });
 
   // Asserting on `feat4Desc` here would encode the template's shape rather than
   // this app's claims, and would fail against any honest rewrite that has
   // fewer than four things to say. What matters is that a blank claim is not
   // rendered as an empty row.
-  it('renders no row for a claim this app does not make', async () => {
+  it("renders no row for a claim this app does not make", async () => {
     const { queryByText } = await renderWithProviders(<Paywall />);
-    expect(queryByText('')).toBeNull();
+    expect(queryByText("")).toBeNull();
   });
 
-  it('closes itself for a user who already owns it', async () => {
+  it("closes itself for a user who already owns it", async () => {
     seed({ isPremium: true });
     await renderWithProviders(<Paywall />);
     await waitFor(() => expect(testRouter.back).toHaveBeenCalled());
   });
 
-  it('surfaces a purchase error', async () => {
-    seed({ lifetime: LIFETIME, error: t('purchaseFailed') });
+  it("surfaces a purchase error", async () => {
+    seed({ lifetime: LIFETIME, error: t("purchaseFailed") });
     const { getByText } = await renderWithProviders(<Paywall />);
-    expect(getByText(t('purchaseFailed'))).toBeTruthy();
+    expect(getByText(t("purchaseFailed"))).toBeTruthy();
   });
 
-  it('offers restore — App Review tests this path on a fresh install', async () => {
-    const restore = jest.fn().mockResolvedValue('none');
+  it("offers restore — App Review tests this path on a fresh install", async () => {
+    const restore = jest.fn().mockResolvedValue("none");
     seed({ restore });
     const { getByText } = await renderWithProviders(<Paywall />);
-    await fireEvent.press(getByText(t('restorePurchases')));
+    await fireEvent.press(getByText(t("restorePurchases")));
     expect(restore).toHaveBeenCalled();
   });
 
-  it('closes on the close control', async () => {
+  it("closes on the close control", async () => {
     const { getByLabelText } = await renderWithProviders(<Paywall />);
-    await fireEvent.press(getByLabelText(t('close')));
+    await fireEvent.press(getByLabelText(t("close")));
     expect(testRouter.back).toHaveBeenCalled();
   });
 
-  it('links to terms and privacy, which both stores require on a paywall', async () => {
-    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+  it("links to terms and privacy, which both stores require on a paywall", async () => {
+    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     const { getByLabelText } = await renderWithProviders(<Paywall />);
-    await fireEvent.press(getByLabelText(t('termsOfUse')));
-    await fireEvent.press(getByLabelText(t('privacyPolicy')));
+    await fireEvent.press(getByLabelText(t("termsOfUse")));
+    await fireEvent.press(getByLabelText(t("privacyPolicy")));
     // Awaited for the same reason as the settings link test: an unsettled
     // promise from the previous test unmounts the next one's tree.
     await waitFor(() => expect(open).toHaveBeenCalledTimes(2));
   });
 
-  it('discloses that ads are what make the app free', async () => {
+  it("discloses that ads are what make the app free", async () => {
     const { getByText } = await renderWithProviders(<Paywall />);
-    expect(getByText(t('adsDisclosure'))).toBeTruthy();
+    expect(getByText(t("adsDisclosure"))).toBeTruthy();
   });
 
-  it('steps through the benefit carousel on Next/Back rather than listing them all at once', async () => {
+  it("steps through the benefit carousel on Next/Back rather than listing them all at once", async () => {
     const { getByText, queryByText } = await renderWithProviders(<Paywall />);
 
     // Step 0 (the default): only the first benefit is on screen.
-    expect(getByText(t('feat1Title'))).toBeTruthy();
-    expect(queryByText(t('feat2Title'))).toBeNull();
+    expect(getByText(t("feat1Title"))).toBeTruthy();
+    expect(queryByText(t("feat2Title"))).toBeNull();
 
-    await fireEvent.press(getByText(t('benefitNext')));
-    expect(getByText(t('feat2Title'))).toBeTruthy();
-    expect(queryByText(t('feat1Title'))).toBeNull();
+    await fireEvent.press(getByText(t("benefitNext")));
+    expect(getByText(t("feat2Title"))).toBeTruthy();
+    expect(queryByText(t("feat1Title"))).toBeNull();
 
-    await fireEvent.press(getByText(t('back')));
-    expect(getByText(t('feat1Title'))).toBeTruthy();
-    expect(queryByText(t('feat2Title'))).toBeNull();
+    await fireEvent.press(getByText(t("back")));
+    expect(getByText(t("feat1Title"))).toBeTruthy();
+    expect(queryByText(t("feat2Title"))).toBeNull();
+  });
+
+  describe("benefit carousel auto-advance", () => {
+    // The carousel's own timer fires correctly on every advance (verified
+    // directly), but React's Scheduler flushes the resulting re-render on a
+    // zero-delay timer of its own -- which fake timers also intercept. A
+    // trailing zero-length advance flushes that pending render instead of
+    // leaving every assertion reading one tick stale.
+    const ADVANCE_MS = 5000;
+    async function advanceOneStep() {
+      await jest.advanceTimersByTimeAsync(ADVANCE_MS);
+      await jest.advanceTimersByTimeAsync(0);
+    }
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it("auto-advances to the next benefit on a timer, with no tap required", async () => {
+      jest.useFakeTimers();
+      const { getByText, queryByText } = await renderWithProviders(<Paywall />);
+      expect(getByText(t("feat1Title"))).toBeTruthy();
+
+      await advanceOneStep();
+
+      expect(getByText(t("feat2Title"))).toBeTruthy();
+      expect(queryByText(t("feat1Title"))).toBeNull();
+    });
+
+    it("loops back to the first benefit after the last, rather than stopping", async () => {
+      jest.useFakeTimers();
+      const { getByText } = await renderWithProviders(<Paywall />);
+      // All four claim slots are filled in the default (English) locale.
+      const benefitCount = 4;
+
+      for (let i = 0; i < benefitCount - 1; i += 1) {
+        await advanceOneStep();
+      }
+      // One tick before the wraparound: confirms the timer actually moved
+      // the carousel all the way to the last claim, not that it never moved.
+      expect(getByText(t("feat4Title"))).toBeTruthy();
+
+      await advanceOneStep();
+
+      expect(getByText(t("feat1Title"))).toBeTruthy();
+    });
+
+    it("stops auto-advancing once the user steps through it manually", async () => {
+      jest.useFakeTimers();
+      const { getByText, queryByText } = await renderWithProviders(<Paywall />);
+
+      await fireEvent.press(getByText(t("benefitNext")));
+      expect(getByText(t("feat2Title"))).toBeTruthy();
+
+      await advanceOneStep();
+      await advanceOneStep();
+      await advanceOneStep();
+      await advanceOneStep();
+
+      // Still on the benefit the user manually chose -- the timer did not
+      // fight the interaction and skip it forward.
+      expect(getByText(t("feat2Title"))).toBeTruthy();
+      expect(queryByText(t("feat3Title"))).toBeNull();
+    });
   });
 });
 
-describe('when the store has nothing to sell', () => {
-  it('says the store is unreachable rather than spinning forever', async () => {
+describe("when the store has nothing to sell", () => {
+  it("says the store is unreachable rather than spinning forever", async () => {
     usePremiumStore.setState({
       lifetime: null,
       offeringsResolved: true,
@@ -144,11 +208,11 @@ describe('when the store has nothing to sell', () => {
       isReady: true,
     });
     const { getByText, queryByText } = await renderWithProviders(<Paywall />);
-    expect(getByText(t('storeUnavailable'))).toBeTruthy();
-    expect(queryByText(t('loadingPrice'))).toBeNull();
+    expect(getByText(t("storeUnavailable"))).toBeTruthy();
+    expect(queryByText(t("loadingPrice"))).toBeNull();
   });
 
-  it('still offers Restore, so a user who already paid is not stranded', async () => {
+  it("still offers Restore, so a user who already paid is not stranded", async () => {
     usePremiumStore.setState({
       lifetime: null,
       offeringsResolved: true,
@@ -156,10 +220,10 @@ describe('when the store has nothing to sell', () => {
       isReady: true,
     });
     const { getByText } = await renderWithProviders(<Paywall />);
-    expect(getByText(t('restorePurchases'))).toBeTruthy();
+    expect(getByText(t("restorePurchases"))).toBeTruthy();
   });
 
-  it('shows the spinner only while the lookup is genuinely still running', async () => {
+  it("shows the spinner only while the lookup is genuinely still running", async () => {
     usePremiumStore.setState({
       lifetime: null,
       offeringsResolved: false,
@@ -167,7 +231,7 @@ describe('when the store has nothing to sell', () => {
       isReady: true,
     });
     const { getByText, queryByText } = await renderWithProviders(<Paywall />);
-    expect(getByText(t('loadingPrice'))).toBeTruthy();
-    expect(queryByText(t('storeUnavailable'))).toBeNull();
+    expect(getByText(t("loadingPrice"))).toBeTruthy();
+    expect(queryByText(t("storeUnavailable"))).toBeNull();
   });
 });

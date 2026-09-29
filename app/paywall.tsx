@@ -1,20 +1,29 @@
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import Feather from "@expo/vector-icons/Feather";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
   Pressable,
   ScrollView,
   View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button, Text } from '@/components/ui';
-import { t } from '@/i18n';
-import { PRIVACY_POLICY_URL, TERMS_URL } from '@/monetization/config';
-import { usePremiumStore } from '@/store/usePremiumStore';
-import { useTheme } from '@/theme';
-import { useTabletColumn } from '../src/theme/useTabletColumn';
+import { Button, Text } from "@/components/ui";
+import { t } from "@/i18n";
+import { PRIVACY_POLICY_URL, TERMS_URL } from "@/monetization/config";
+import { usePremiumStore } from "@/store/usePremiumStore";
+import { MIN_TOUCH_TARGET, useTheme } from "@/theme";
+import { useTabletColumn } from "../src/theme/useTabletColumn";
+
+/**
+ * How long each claim stays on screen before the carousel advances itself.
+ * Long enough to read a one-line title and description, short enough that a
+ * tester who never taps Next still sees every claim inside one glance at the
+ * paywall.
+ */
+const AUTO_ADVANCE_MS = 5000;
 
 /**
  * The one purchase this app sells: a lifetime non-consumable that removes the ads and unlocks
@@ -22,10 +31,10 @@ import { useTabletColumn } from '../src/theme/useTabletColumn';
  * and the portfolio does not sell those.
  */
 const BENEFIT_KEYS = [
-  { title: 'feat1Title', desc: 'feat1Desc' },
-  { title: 'feat2Title', desc: 'feat2Desc' },
-  { title: 'feat3Title', desc: 'feat3Desc' },
-  { title: 'feat4Title', desc: 'feat4Desc' },
+  { title: "feat1Title", desc: "feat1Desc" },
+  { title: "feat2Title", desc: "feat2Desc" },
+  { title: "feat3Title", desc: "feat3Desc" },
+  { title: "feat4Title", desc: "feat4Desc" },
 ] as const;
 
 type BenefitKey = (typeof BENEFIT_KEYS)[number];
@@ -52,6 +61,18 @@ function BenefitCarousel({ benefits }: { benefits: readonly BenefitKey[] }) {
   // one — required both for an honest paywall and for `getByText(t('feat1Title'))`
   // to pass with zero interaction.
   const [step, setStep] = useState(0);
+  // A tap on Back/Next is the user taking over — the timer must not then
+  // fight that choice by jumping the claim they picked forward again a few
+  // seconds later.
+  const [autoAdvancing, setAutoAdvancing] = useState(true);
+
+  useEffect(() => {
+    if (!autoAdvancing || benefits.length <= 1) return;
+    const id = setInterval(() => {
+      setStep((s) => (s + 1) % benefits.length);
+    }, AUTO_ADVANCE_MS);
+    return () => clearInterval(id);
+  }, [autoAdvancing, benefits.length]);
 
   const current = benefits[step];
   if (!current) return null;
@@ -59,9 +80,18 @@ function BenefitCarousel({ benefits }: { benefits: readonly BenefitKey[] }) {
   const isFirst = step === 0;
   const isLast = step === benefits.length - 1;
 
+  const goBack = () => {
+    setAutoAdvancing(false);
+    setStep((s) => Math.max(0, s - 1));
+  };
+  const goNext = () => {
+    setAutoAdvancing(false);
+    setStep((s) => Math.min(benefits.length - 1, s + 1));
+  };
+
   return (
-    <View style={{ marginTop: spacing['2xl'] }}>
-      <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+    <View style={{ marginTop: spacing["2xl"] }}>
+      <View style={{ flexDirection: "row", gap: spacing.xs }}>
         {benefits.map((benefit, index) => (
           <View
             key={benefit.title}
@@ -77,8 +107,8 @@ function BenefitCarousel({ benefits }: { benefits: readonly BenefitKey[] }) {
 
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           gap: spacing.base,
           marginTop: spacing.lg,
         }}
@@ -96,50 +126,77 @@ function BenefitCarousel({ benefits }: { benefits: readonly BenefitKey[] }) {
 
       <View
         style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
           marginTop: spacing.lg,
         }}
       >
         {!isFirst ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t('back')}
+            accessibilityLabel={t("back")}
             hitSlop={12}
-            onPress={() => setStep((s) => Math.max(0, s - 1))}
-            style={{ minWidth: 44, minHeight: 44, justifyContent: 'center' }}
+            onPress={goBack}
+            style={({ pressed }) => [
+              {
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.xs,
+                minWidth: MIN_TOUCH_TARGET,
+                minHeight: MIN_TOUCH_TARGET,
+                paddingHorizontal: spacing.base,
+                borderRadius: radius.full,
+                backgroundColor: colors.surfaceAlt,
+                borderWidth: 1,
+                borderColor: colors.border,
+                justifyContent: "center",
+                opacity: pressed ? 0.7 : 1,
+              },
+            ]}
           >
-            <Text variant="body" tone="muted">
-              {t('back')}
-            </Text>
+            <Feather name="chevron-left" size={18} color={colors.text} />
+            <Text variant="bodyStrong">{t("back")}</Text>
           </Pressable>
         ) : (
           // An empty, same-sized spacer — not a disabled button left in the
           // tree — so the Next button on the right does not jump around as
           // the user steps through.
-          <View style={{ minWidth: 44, minHeight: 44 }} />
+          <View
+            style={{ minWidth: MIN_TOUCH_TARGET, minHeight: MIN_TOUCH_TARGET }}
+          />
         )}
 
         {!isLast ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t('benefitNext')}
+            accessibilityLabel={t("benefitNext")}
             hitSlop={12}
-            onPress={() => setStep((s) => Math.min(benefits.length - 1, s + 1))}
-            style={{
-              minWidth: 44,
-              minHeight: 44,
-              justifyContent: 'center',
-              alignItems: 'flex-end',
-            }}
+            onPress={goNext}
+            style={({ pressed }) => [
+              {
+                flexDirection: "row",
+                alignItems: "center",
+                gap: spacing.xs,
+                minWidth: MIN_TOUCH_TARGET,
+                minHeight: MIN_TOUCH_TARGET,
+                paddingHorizontal: spacing.lg,
+                borderRadius: radius.full,
+                backgroundColor: colors.accent,
+                justifyContent: "center",
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}
           >
-            <Text variant="bodyStrong" tone="accent">
-              {t('benefitNext')}
+            <Text variant="bodyStrong" color={colors.onAccent}>
+              {t("benefitNext")}
             </Text>
+            <Feather name="chevron-right" size={18} color={colors.onAccent} />
           </Pressable>
         ) : (
-          <View style={{ minWidth: 44, minHeight: 44 }} />
+          <View
+            style={{ minWidth: MIN_TOUCH_TARGET, minHeight: MIN_TOUCH_TARGET }}
+          />
         )}
       </View>
     </View>
@@ -200,21 +257,21 @@ export default function Paywall() {
         paddingTop: insets.top,
       }}
     >
-      <View style={{ alignItems: 'flex-end', padding: spacing.base }}>
+      <View style={{ alignItems: "flex-end", padding: spacing.base }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('close')}
+          accessibilityLabel={t("close")}
           hitSlop={12}
           onPress={() => router.back()}
           style={{
             minWidth: 44,
             minHeight: 44,
-            alignItems: 'flex-end',
-            justifyContent: 'center',
+            alignItems: "flex-end",
+            justifyContent: "center",
           }}
         >
           <Text variant="body" tone="muted">
-            {t('close')}
+            {t("close")}
           </Text>
         </Pressable>
       </View>
@@ -222,31 +279,31 @@ export default function Paywall() {
       <ScrollView
         contentContainerStyle={{
           padding: spacing.xl,
-          paddingBottom: spacing['3xl'],
+          paddingBottom: spacing["3xl"],
           ...tabletColumn,
           flexGrow: 1,
-          justifyContent: 'center',
+          justifyContent: "center",
         }}
       >
         <Text variant="micro" tone="accent">
-          {t('antiSubTitle')}
+          {t("antiSubTitle")}
         </Text>
         <Text variant="display" style={{ marginTop: spacing.xs }}>
-          {t('paywallTitle')}
+          {t("paywallTitle")}
         </Text>
         <Text variant="body" tone="muted" style={{ marginTop: spacing.sm }}>
-          {t('antiSubHeadline')}
+          {t("antiSubHeadline")}
         </Text>
 
         <BenefitCarousel benefits={benefits} />
 
-        <View style={{ marginTop: spacing['2xl'] }}>
+        <View style={{ marginTop: spacing["2xl"] }}>
           {lifetime ? (
             <Button
               label={
                 price
-                  ? t('lifetimeAccess', { price })
-                  : t('lifetimeAccessPlain')
+                  ? t("lifetimeAccess", { price })
+                  : t("lifetimeAccessPlain")
               }
               size="lg"
               fullWidth
@@ -257,20 +314,20 @@ export default function Paywall() {
             // Resolved, with no package: the store is genuinely unreachable or carries no
             // product yet. Say that, and keep Restore reachable below — a user who already
             // paid must still be able to get their purchase back.
-            <View style={{ padding: spacing.xl, alignItems: 'center' }}>
+            <View style={{ padding: spacing.xl, alignItems: "center" }}>
               <Text variant="caption" tone="muted" align="center">
-                {t('storeUnavailable')}
+                {t("storeUnavailable")}
               </Text>
             </View>
           ) : (
-            <View style={{ padding: spacing.xl, alignItems: 'center' }}>
+            <View style={{ padding: spacing.xl, alignItems: "center" }}>
               <ActivityIndicator color={colors.textMuted} />
               <Text
                 variant="caption"
                 tone="muted"
                 style={{ marginTop: spacing.md }}
               >
-                {t('loadingPrice')}
+                {t("loadingPrice")}
               </Text>
             </View>
           )}
@@ -280,7 +337,7 @@ export default function Paywall() {
             align="center"
             style={{ marginTop: spacing.md }}
           >
-            {t('oneTimePayment')}
+            {t("oneTimePayment")}
           </Text>
         </View>
 
@@ -308,13 +365,13 @@ export default function Paywall() {
         ) : null}
 
         <Button
-          label={t('restorePurchases')}
+          label={t("restorePurchases")}
           variant="ghost"
           fullWidth
           onPress={() => {
             setRestoreNotice(null);
             void restore().then((outcome) => {
-              if (outcome === 'none') setRestoreNotice(t('noPriorPurchases'));
+              if (outcome === "none") setRestoreNotice(t("noPriorPurchases"));
             });
           }}
           style={{ marginTop: spacing.lg }}
@@ -326,34 +383,34 @@ export default function Paywall() {
           align="center"
           style={{ marginTop: spacing.xl }}
         >
-          {t('adsDisclosure')}
+          {t("adsDisclosure")}
         </Text>
         <View
           style={{
-            flexDirection: 'row',
-            justifyContent: 'center',
+            flexDirection: "row",
+            justifyContent: "center",
             gap: spacing.lg,
             marginTop: spacing.md,
           }}
         >
           <Pressable
             accessibilityRole="link"
-            accessibilityLabel={t('termsOfUse')}
+            accessibilityLabel={t("termsOfUse")}
             hitSlop={12}
             onPress={() => void Linking.openURL(TERMS_URL)}
           >
             <Text variant="micro" tone="faint">
-              {t('termsOfUse')}
+              {t("termsOfUse")}
             </Text>
           </Pressable>
           <Pressable
             accessibilityRole="link"
-            accessibilityLabel={t('privacyPolicy')}
+            accessibilityLabel={t("privacyPolicy")}
             hitSlop={12}
             onPress={() => void Linking.openURL(PRIVACY_POLICY_URL)}
           >
             <Text variant="micro" tone="faint">
-              {t('privacyPolicy')}
+              {t("privacyPolicy")}
             </Text>
           </Pressable>
         </View>
